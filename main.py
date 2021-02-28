@@ -9,7 +9,6 @@ import time
 
 import numpy as np
 import requests
-import xlrd
 import xlwt
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
@@ -175,7 +174,6 @@ class BossJob:
         return detail_page_url_list
 
     def getDetails(self):
-        self.__browserInitializer__()
 
         workbook = xlwt.Workbook(encoding='utf-8')
         worksheet = workbook.add_sheet('sheet1')
@@ -191,14 +189,18 @@ class BossJob:
         worksheet.write(i, 8, "公司规模")
         worksheet.write(i, 9, "公司所属行业")
         worksheet.write(i, 10, "来自页面的url")
-        with open(self.detailPageUrlListTxt, mode='r', encoding='utf-8') as f:
-            print("ok")
-            while f.readable():
-                i += 1
-                detail_url = f.readline()
-                self.check_detail_url(detail_url)
-                if i > 210:
-                    break
+        detailPagesDic = self.__getDetailPageUrlsDic__()
+        for detail_url in detailPagesDic.keys():
+            i += 1
+            if i > 3000:
+                break
+            detailPage = detailPagesDic.get(detail_url)
+            if detailPage.get("isComplete"):
+                print("该页面：%s 已经爬取过。" % detail_url)
+                self.__writeByDetailPageDict__(worksheet, i, detailPage, detail_url)
+                continue
+            else:
+                self.__browserInitializer__()
                 self.browser.get(detail_url)
                 info_primary_div = self.browser.find_element_by_class_name('info-primary')
                 job_name_div = info_primary_div.find_element_by_class_name('name')
@@ -227,37 +229,56 @@ class BossJob:
                 print(job_title, job_salary, city, experiment, degree, job_description, company_name, "|||",
                       company_stage,
                       "|||", company_scale, "|||", company_industry)
-                worksheet.write(i, 0, job_title)
-                worksheet.write(i, 1, job_salary)
-                worksheet.write(i, 2, city)
-                worksheet.write(i, 3, experiment)
-                worksheet.write(i, 4, degree)
-                worksheet.write(i, 5, job_description)
-                worksheet.write(i, 6, company_name)
-                worksheet.write(i, 7, company_stage)
-                worksheet.write(i, 8, company_scale)
-                worksheet.write(i, 9, company_industry)
-                worksheet.write(i, 10, detail_url)
+
+                detailPage["job_title"] = job_title
+                detailPage["job_salary"] = job_salary
+                detailPage["city"] = city
+                detailPage["experiment"] = experiment
+                detailPage["degree"] = degree
+                detailPage["job_description"] = job_description
+                detailPage["company_name"] = company_name
+                detailPage["company_stage"] = company_stage
+                detailPage["company_scale"] = company_scale
+                detailPage["company_industry"] = company_industry
+
+                self.__writeByDetailPageDict__(worksheet, i, detailPage, detail_url)
+
                 workbook.save(self.detailXls)
+                detailPage["isComplete"] = True
+                self.__saveSettings__()
                 # print(web_element.text)
                 # print(len(detail_page_url_list))
                 # print(_web_element.text)
 
-    def check_detail_url(self, detail_url: str):
-        workbook = xlrd.open_workbook_xls(self.detailXls)
-        sheet = workbook.get_sheet(0)
-        print(sheet.name)
-        for row_index in range(sheet.nrows):
-            url = sheet.cell_value(10, row_index)
-            res = url == detail_url
-            print(url, detail_url, res)
-            if res:
-                # 如果是一样就返回
-                return False
-            else:
-                continue
-        return True
-    # def __init_xlsx(self):
+    def __writeByDetailPageDict__(self, worksheet: xlwt.Worksheet, rowIndex: int, detailPage: dict, detailUrl: str):
+        i = rowIndex
+        worksheet.write(i, 0, detailPage["job_title"])
+        worksheet.write(i, 1, detailPage["job_salary"])
+        worksheet.write(i, 2, detailPage["city"])
+        worksheet.write(i, 3, detailPage["experiment"])
+        worksheet.write(i, 4, detailPage["degree"])
+        worksheet.write(i, 5, detailPage["job_description"])
+        worksheet.write(i, 6, detailPage["company_name"])
+        worksheet.write(i, 7, detailPage["company_stage"])
+        worksheet.write(i, 8, detailPage["company_scale"])
+        worksheet.write(i, 9, detailPage["company_industry"])
+        worksheet.write(i, 10, detailUrl)
+
+    # def check_detail_url(self, detail_url: str):
+    #     workbook = xlrd.open_workbook_xls(self.detailXls)
+    #     sheet = workbook.get_sheet(0)
+    #     print(sheet.name)
+    #     for row_index in range(sheet.nrows):
+    #         url = sheet.cell_value(10, row_index)
+    #         res = url == detail_url
+    #         print(url, detail_url, res)
+    #         if res:
+    #             # 如果是一样就返回
+    #             return False
+    #         else:
+    #             continue
+    #     return True
+    # # def __init_xlsx(self):
     #     writer = pd.ExcelWriter(self.detailXls)
     #     dicForSheet1 = {"pageIndex": [], }
     #     dicForSheet2 = {"url": [], "complete": []}
@@ -312,6 +333,7 @@ if __name__ == '__main__':
     #                        allow_pickle=True).item()
     #     print(a_loaded)
     bossJob.getAllDetailPageUrl()
+    bossJob.getDetails()
     # for i in range(0, 100):
     #     print(i)
     #     time.sleep(3)
