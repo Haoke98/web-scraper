@@ -58,7 +58,6 @@ class BossJob:
     sheetDetailPagesUrl = "sheet2"
     sheetDetails = "sheet3"
     baseUrl = "%s/%s/" % (domain, query)
-    detailPageUrlListTxt = "./%s.txt" % query
     settings = dict({'query':
                          "c100010000-p120106",
                      "searchResPageCount": 7,
@@ -78,8 +77,6 @@ class BossJob:
         self.query = query
         self.__loadSettings__()
         print(self.settings)
-        self.settings['query'].setdefault(query, {'details_page_urls': []})
-        self.detailPageUrlListTxt = "%s.txt" % query
         self.baseUrl = "%s/%s/" % (self.domain, query)
         self.detailXls = "%s.xlsx" % query
 
@@ -148,7 +145,8 @@ class BossJob:
             job_tab_div = self.browser.find_element_by_class_name('job-tab')
             detailPageCount = job_tab_div.get_attribute('data-rescount')
             searchResPageCount = math.ceil((int(detailPageCount) / 30))
-            self.__getCurrQueryConfig__().setdefault("searchResPageCount", searchResPageCount)
+            self.settings["searchResPageCount"] = searchResPageCount
+            self.settings["detailPageCount"] = detailPageCount
             self.__saveSettings__()
         return searchResPageCount
 
@@ -158,13 +156,13 @@ class BossJob:
                 pass
             else:
                 url = "%s?page=%d&ka=page-%d" % (self.baseUrl, pageIndex, pageIndex)
-                url_list = self.getDetailPageUrl(url)
+                url_list = self.__getDetailPageUrl__(url)
                 print("获取%d页成功" % pageIndex, url_list)
                 self.__saveDetailPagesUrl__(url_list, pageIndex)
                 self.__setCompletePageIndex__(pageIndex)
                 time.sleep(3)
 
-    def getDetailPageUrl(self, url: str):
+    def __getDetailPageUrl__(self, url: str) -> list:
         self.__browserInitializer__()
         self.browser.get(url)
 
@@ -303,7 +301,7 @@ class BossJob:
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     bossJob = BossJob("c100010000-p120106")
-    print(bossJob.baseUrl, bossJob.detailPageUrlListTxt, bossJob.detailXls)
+    print(bossJob.baseUrl, bossJob.detailXls)
     # bossJob.getDetailPagesCount()
     # a = {"sadam": " a boy ", "age": 22, 1: "kalbim"}
     # a.setdefault("x", {"b": "inner dict."})
